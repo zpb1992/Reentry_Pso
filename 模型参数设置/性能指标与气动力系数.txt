@@ -1,0 +1,92 @@
+
+
+性能指标f=tf；
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 阻力系数向量 D
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+CD = get_CD(v,alpha);
+--------------------------------
+function CD = get_CD(v,alpha)
+
+% 获得阻力系数CD
+
+% 使用 孙勇 论文中P31的简化模型 alpha 单位为 rad , v 单位为 m/s
+
+% 数据采用 《A Common Aero Vehicle (CAV) Model, Description, and Employment Guide 》
+
+global vc v_sound
+
+m=size(v,2);
+
+v=v*vc/v_sound;
+
+CD1=2.3795; CD2=0.3983; CD3=-1.0794*10^(-3); CD0=0.0234;
+
+CD= CD1*(alpha.^2) + CD2*exp(CD3*v) + CD0;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 升力系数向量 L
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+CL = get_CL(v,alpha);
+--------------------------------
+function CL = get_CL(v,alpha)
+
+% 获得升力系数CL
+
+% 使用 孙勇 论文中P31的简化模型 alpha 单位为 rad , v 单位为 m/s
+
+% 数据采用 《A Common Aero Vehicle (CAV) Model, Description, and Employment Guide 》
+
+global vc v_sound
+
+m=size(v,2);
+
+v=v*vc/v_sound;
+
+CL1=2.9451; CL2=0.2949; CL3=-3.3943*10^(-4); CL0=-0.2355;
+
+CL= CL1*alpha + CL2*exp(CL3*v) + CL0;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 大气密度 rho
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+YH = r*R0 - R0 ;     % r为归一化后的地心距向量  ，YH为飞行高度 单位为 m
+
+[rho] = GetDensity_sunyong(YH);
+--------------------------------------
+function [Density]=GetDensity_sunyong(YH)
+
+global rho0
+
+h=YH;
+
+beta=1.3785*10^(-4);
+
+Density=rho0*exp(-beta*h);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
