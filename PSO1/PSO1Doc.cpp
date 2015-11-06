@@ -632,20 +632,20 @@ void CPSO1Doc::PsoProcess()
 	//LAGRANGE 龙格现象严重
 
 
-	delete(stateTime);
-	delete(piccon);
-	delete(piccon_a);
+	delete []stateTime;
+	delete []piccon;
+	delete []piccon_a;
 	for(UINT i=0;i<6;i++)
 	{
-		delete(picState[i]);
+		delete []picState[i];
 	}
-	delete(picState);
-	delete(pathQ);
-	delete(pathq);
-	delete(pathn);
-	delete(picQ);
-	delete(picq);
-	delete(picn);
+	delete []picState;
+	delete []pathQ;
+	delete []pathq;
+	delete []pathn;
+	delete []picQ;
+	delete []picq;
+	delete []picn;
 
 	
 	
@@ -1024,6 +1024,21 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	//临时的适应度
 	double adapt;
 
+	// 保存每次与约束有关的计算结果
+	double **finalState=new double *[6];
+	for(int i=0;i<6;i++)
+	{
+		finalState[i]=new double [m_n];
+	}
+	double *overLoad=new double [m_n];
+	double *pressure=new double[m_n];
+	double *heatDensity=new double[m_n];
+	double *heat=new double[m_n];
+	double *dControlA=new double[m_n];
+	double *dControlB=new double[m_n];
+	double *angleTrack=new double[m_n];
+	double *dAngleTrack=new double[m_n];
+
 	// 归一化问题 
 	// 本次循环只是将所有与约束有关的量全部存储 并不能计算适应度
 	for(UINT i=0;i<m_n;i++)
@@ -1098,6 +1113,68 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 		{
 			TimeSwarm[i]=m_tScope[0];
 		}
+
+		
+		LGKT(ParSwarm[i],TimeSwarm[i],State);
+
+		/*     让所有的值都趋于0就行了   */
+		// 等式约束
+		if(m_finalflag1)
+			finalState[0][i]=std::abs(State[0][m_d-1]-m_finalState1);
+		if(m_finalflag2)
+			finalState[1][i]=std::abs(State[1][m_d-1]-m_finalState2);
+		if(m_finalflag3)
+			finalState[2][i]=std::abs(State[2][m_d-1]-m_finalState3);
+		if(m_finalflag5)
+			finalState[4][i]=std::abs(State[4][m_d-1]-m_finalState5);
+		if(m_finalflag6)
+			finalState[5][i]=std::abs(State[5][m_d-1]-m_finalState6);
+		// 等式约束
+		if(m_finalflag4)
+			finalState[3][i]=std::abs(State[3][m_d-1]-m_finalState4);
+
+
+		double sumQ=0;
+		double Q,q,n;
+		PathLimits(State,ParSwarm[i],Q,q,n,sumQ);
+		sumQ = sumQ*TimeSwarm[i]/(double)(m_stateN-1);
+		overLoad[i]=n;
+		pressure[i]=q;
+		heatDensity[i]=Q;
+		heat[i]=sumQ;
+
+		double conA=0,conB=0;
+		for(int cn=1;cn<m_d;cn++)
+		{
+			// 控制变量 变化率
+			conB += std::abs(ParSwarm[i][cn]-ParSwarm[i][cn-1]);
+			conA += std::abs(ParSwarm[i][cn+m_d]-ParSwarm[i][cn+m_d-1]);
+		}
+		dControlA[i]=conA*TimeSwarm[i]/(double)(m_d-1);
+		dControlB[i]=conB*TimeSwarm[i]/(double)(m_d-1);
+
+		double track=0,dTrack=0;
+		for(int sd=1;sd<m_stateN;sd++)
+		{
+			track+=std::abs(State[4][sd]);
+
+			double g=R0*R0*g0/(State[0][i]*State[0][i]);
+			double den=den0*exp(-(State[0][i]-R0)/H);
+			double a=Interp1(ParSwarm[i]+m_d,(double)sd/(m_stateN-1));
+			double Cl,Cd;
+			ClCdFunc(a,State[3][i],&Cl,&Cd);
+			double L=den*State[3][i]*State[3][i]*m_s*Cl/2;
+			dTrack += std::abs((State[3][i]*State[3][i]/State[0][i]-g)+L/m_m);
+			//dTrack+=std::abs(State[4][sd]-State[4][sd-1]);			
+		}
+		angleTrack[i]=track;
+		dAngleTrack[i]=dTrack;
+
+		double *tempAdaptLimits=new double[m_n];
+		memset(tempAdaptLimits,0,m_n*sizeof(double));
+
+		delete []tempAdaptLimits;
+		/*
 		//更新适应度
 		adapt=AdaptFunc(ParSwarm[i],TimeSwarm[i],State);
 
@@ -1223,8 +1300,28 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 					*BestTime=TimeSwarm[i];
 				}
 			}
-		}
+		}*/   // 在内更新adapt
 	}
+
+	// 计算适应度 计算出的是个矩阵
+	double *adapt=new double[m_n]; // 本次循环计算出的所有粒子的适应度
+
+	
+
+
+	for(int i=0;i<6;i++)
+	{
+		delete []finalState[i];
+	}
+	delete []finalState;
+	delete []overLoad;
+	delete []pressure;
+	delete []heatDensity;
+	delete []heat;
+	delete []dControlA;
+	delete []dControlB;
+	delete []angleTrack;
+	delete []dAngleTrack;
 }
 
 
@@ -2406,4 +2503,38 @@ void CPSO1Doc::OnFileRemove()
 {
 	// TODO: Add your command handler code here
 	CFile::Remove("data.txt");
+}
+
+void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack)
+{
+	double fitFinalState[6];
+	if(m_finalflag1)
+		fitFinalState[0]=Max(finalState[0],m_n);
+	if(m_finalflag2)
+		fitFinalState[1]=Max(finalState[1],m_n);
+	if(m_finalflag3)
+		fitFinalState[2]=Max(finalState[2],m_n);
+	if(m_finalflag5)
+		fitFinalState[4]=Max(finalState[4],m_n);
+	if(m_finalflag6)
+		fitFinalState[5]=Max(finalState[5],m_n);
+	// 等式约束
+	if(m_finalflag4)
+		fitFinalState[3]=Max(finalState[3],m_n);
+
+	double maxOverLoad=Max(overLoad,m_n);
+	double maxPressure=Max(pressure,m_n);
+	double maxHeatDen=Max(heatDen,m_n);
+	double maxHeat=Max(heat,m_n);
+	double maxConA=Max(conA,m_n);
+	double maxConB=Max(conB,m_n);
+	double maxTrack=Max(track,m_n);
+	double maxDTrack=Max(dTrack,m_n);
+
+	for(int i=0;i<m_n;i++)
+	{
+		// 权值 * 对应部分/最大值
+	}
+	
+
 }

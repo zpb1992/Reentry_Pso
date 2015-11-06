@@ -208,4 +208,9 @@ public:
 	BOOL ClCdFunc(double a, double v,double* Cl,double* Cd);
 	BOOL Interp1_ab(double* y, double xi, double& a , double& b);
 	afx_msg void OnFileRemove();
+
+public:
+	// 归一化的适应度计算
+	void NormalizationForLimit(double *adapt,
+		double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack);
 };
