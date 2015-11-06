@@ -215,7 +215,7 @@ public:
 		double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack);
 	afx_msg void OnWeight();
 	void Initial();  // 初始化权重
-
+	double MaxEx(double *array,int n);
 public:
 	double m_wS1;
 	double m_wS2;

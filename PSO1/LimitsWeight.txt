@@ -1,1 +1,14 @@
-gaodu 1jingdu 1weidu 1sudu 1hangjijiao 1hangxiangjiao 1guozai 1dongya 1reliu 1zongreliang 1gongjiaobianhualv 1qingcejiaobianhualv 1track 1trackbianhualv 1
+gaodu 10
+jingdu 1
+weidu 1
+sudu 1
+hangjijiao 1
+hangxiangjiao 1
+guozai 1
+dongya 1
+reliu 1
+zongreliang 1
+gongjiaobianhualv 1
+qingcejiaobianhualv 1
+track 1
+trackbianhualv 1

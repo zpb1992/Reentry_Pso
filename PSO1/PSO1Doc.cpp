@@ -1006,6 +1006,19 @@ double CPSO1Doc::Max(double* arry, UINT& n)
 	return max;
 }
 
+double CPSO1Doc::MaxEx(double* arry, int n)
+{
+	double max=arry[0];
+	for(UINT i=1;i<n;i++)
+	{
+		if(max<arry[i])
+		{
+			max=arry[i];
+		}
+	}
+	return max;
+}
+
 
 void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm, double* TimeSwarmV, double** OptSwarm, double* BestPar, double* AdaptSwarm, double* OptTime, double* BestTime, double** State)
 {
@@ -1177,10 +1190,6 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 		angleTrack[i]=track;
 		dAngleTrack[i]=dTrack;
 
-		double *tempAdaptLimits=new double[m_n];
-		memset(tempAdaptLimits,0,m_n*sizeof(double));
-
-		delete []tempAdaptLimits;
 		/*
 		//更新适应度
 		adapt=AdaptFunc(ParSwarm[i],TimeSwarm[i],State);
@@ -1312,7 +1321,46 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 
 	// 计算适应度 计算出的是个矩阵
 	double *adapt=new double [m_n]; // 本次循环计算出的所有粒子的适应度
+	memset(adapt,0,m_n*sizeof(double));
+	// 求出来 adapt越小越好  而且adapt还没有算完
+	NormalizationForLimit(adapt,finalState,overLoad,pressure,heatDensity,heat,dControlA,dControlB,angleTrack,dAngleTrack);	
 
+	for(int pn=0;pn<m_n;pn++)
+	{
+		// 继续计算adapt
+		adapt[pn]=-TimeSwarm[pn]-adapt[pn];// 时间最短
+
+		if(AdaptSwarm[pn]<adapt[pn])
+		{
+			AdaptSwarm[pn]=adapt[pn];
+			for(UINT j=0;j<2*m_d;j++)
+			{
+				OptSwarm[pn][j]=ParSwarm[pn][j];
+			}
+			OptTime[pn]=TimeSwarm[pn];
+			//全局最优
+			if(m_bestAdapt<adapt[pn])
+			{
+				m_bestAdapt=adapt[pn];
+				for(UINT j=0;j<2*m_d;j++)
+				{
+					BestPar[j]=ParSwarm[pn][j];
+				}
+				*BestTime=TimeSwarm[pn];
+
+				////  达到最优之后 重新随机粒子
+				//UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
+				//AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);	
+				//// 判断AdaptSwarm[pn]是否是NaN
+				//while(AdaptSwarm[pn]!=AdaptSwarm[pn])
+				//{
+				//	UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
+				//	AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);
+				//}
+			}
+		}
+	}
+	
 	delete []adapt;
 
 
@@ -2516,31 +2564,46 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 {
 	double fitFinalState[6];
 	if(m_finalflag1)
-		fitFinalState[0]=Max(finalState[0],m_n);
+		fitFinalState[0]=MaxEx(finalState[0],m_n);
 	if(m_finalflag2)
-		fitFinalState[1]=Max(finalState[1],m_n);
+		fitFinalState[1]=MaxEx(finalState[1],m_n);
 	if(m_finalflag3)
-		fitFinalState[2]=Max(finalState[2],m_n);
+		fitFinalState[2]=MaxEx(finalState[2],m_n);
 	if(m_finalflag5)
-		fitFinalState[4]=Max(finalState[4],m_n);
+		fitFinalState[4]=MaxEx(finalState[4],m_n);
 	if(m_finalflag6)
-		fitFinalState[5]=Max(finalState[5],m_n);
+		fitFinalState[5]=MaxEx(finalState[5],m_n);
 	// 等式约束
 	if(m_finalflag4)
-		fitFinalState[3]=Max(finalState[3],m_n);
+		fitFinalState[3]=MaxEx(finalState[3],m_n);
 
-	double maxOverLoad=Max(overLoad,m_n);
-	double maxPressure=Max(pressure,m_n);
-	double maxHeatDen=Max(heatDen,m_n);
-	double maxHeat=Max(heat,m_n);
-	double maxConA=Max(conA,m_n);
-	double maxConB=Max(conB,m_n);
-	double maxTrack=Max(track,m_n);
-	double maxDTrack=Max(dTrack,m_n);
+	double maxOverLoad=MaxEx(overLoad,m_n);
+	double maxPressure=MaxEx(pressure,m_n);
+	double maxHeatDen=MaxEx(heatDen,m_n);
+	double maxHeat=MaxEx(heat,m_n);
+	double maxConA=MaxEx(conA,m_n);
+	double maxConB=MaxEx(conB,m_n);
+	double maxTrack=MaxEx(track,m_n);
+	double maxDTrack=MaxEx(dTrack,m_n);
 
 	for(int i=0;i<m_n;i++)
 	{
 		// 权值 * 对应部分/最大值
+		adaptLimits[i]=m_finalflag1*m_wS1*finalState[0][i]/fitFinalState[0]
+						+m_finalflag2*m_wS1*finalState[1][i]/fitFinalState[1]
+						+m_finalflag3*m_wS1*finalState[2][i]/fitFinalState[2]
+						+m_finalflag4*m_wS1*finalState[3][i]/fitFinalState[3]
+						+m_finalflag5*m_wS1*finalState[4][i]/fitFinalState[4]
+						+m_finalflag6*m_wS1*finalState[5][i]/fitFinalState[5]
+										+m_wOver*overLoad[i]/maxOverLoad
+										+m_wPressure*pressure[i]/maxPressure
+										+m_wHeatDen*heatDen[i]/maxHeatDen
+										+m_wHeat*heat[i]/maxHeat
+										+m_wConA*conA[i]/maxConA
+										+m_wConB*conB[i]/maxConB
+										+m_wTrack*track[i]/maxTrack
+										+m_wDTrack*dTrack[i]/maxDTrack;
+		double temp = adaptLimits[i];
 	}
 	
 
@@ -2584,19 +2647,19 @@ void CPSO1Doc::OnWeight()
 		m_wS3=diaWeight.m_wei;
 		
 		std::ofstream file("LimitsWeight.txt");
-		file<<"gaodu "<<m_wS1
-			<<"jingdu "<<m_wS2
-			<<"weidu "<<m_wS3
-			<<"sudu "<<m_wS4
-			<<"hangjijiao "<<m_wS5
-			<<"hangxiangjiao "<<m_wS6
-			<<"guozai "<<m_wOver
-			<<"dongya "<<m_wPressure
-			<<"reliu "<<m_wHeatDen
-			<<"zongreliang "<<m_wHeat
-			<<"gongjiaobianhualv "<<m_wConA
-			<<"qingcejiaobianhualv "<<m_wConB
-			<<"track "<<m_wTrack
+		file<<"gaodu "<<m_wS1<<"\r\n"
+			<<"jingdu "<<m_wS2<<"\r\n"
+			<<"weidu "<<m_wS3<<"\r\n"
+			<<"sudu "<<m_wS4<<"\r\n"
+			<<"hangjijiao "<<m_wS5<<"\r\n"
+			<<"hangxiangjiao "<<m_wS6<<"\r\n"
+			<<"guozai "<<m_wOver<<"\r\n"
+			<<"dongya "<<m_wPressure<<"\r\n"
+			<<"reliu "<<m_wHeatDen<<"\r\n"
+			<<"zongreliang "<<m_wHeat<<"\r\n"
+			<<"gongjiaobianhualv "<<m_wConA<<"\r\n"
+			<<"qingcejiaobianhualv "<<m_wConB<<"\r\n"
+			<<"track "<<m_wTrack<<"\r\n"
 			<<"trackbianhualv "<<m_wDTrack;
 	}
 
