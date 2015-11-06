@@ -110,6 +110,7 @@
     <ClInclude Include="DiaControl.h" />
     <ClInclude Include="DiaFinal.h" />
     <ClInclude Include="DiaFinalTime.h" />
+    <ClInclude Include="DiaLimitsWeight.h" />
     <ClInclude Include="DiaMore.h" />
     <ClInclude Include="DiaPath.h" />
     <ClInclude Include="DiaPicOption.h" />
@@ -130,6 +131,7 @@
     <ClCompile Include="DiaControl.cpp" />
     <ClCompile Include="DiaFinal.cpp" />
     <ClCompile Include="DiaFinalTime.cpp" />
+    <ClCompile Include="DiaLimitsWeight.cpp" />
     <ClCompile Include="DiaMore.cpp" />
     <ClCompile Include="DiaPath.cpp" />
     <ClCompile Include="DiaPicOption.cpp" />

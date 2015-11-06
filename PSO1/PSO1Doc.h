@@ -213,4 +213,24 @@ public:
 	// 归一化的适应度计算
 	void NormalizationForLimit(double *adapt,
 		double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack);
+	afx_msg void OnWeight();
+	void Initial();  // 初始化权重
+
+public:
+	double m_wS1;
+	double m_wS2;
+	double m_wS3;
+	double m_wS4;
+	double m_wS5;
+	double m_wS6;
+
+	double m_wOver;
+	double m_wPressure;
+	double m_wHeatDen;
+	double m_wHeat;
+	double m_wConA;
+	double m_wConB;
+	double m_wTrack;
+	double m_wDTrack;
+
 };

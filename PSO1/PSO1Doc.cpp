@@ -22,9 +22,12 @@
 #include "DiaPlane.h"
 #include "DiaPicOption.h"
 #include "DiaMore.h"
+#include "DiaLimitsWeight.h"
 #include<cmath>
 
 #include <propkey.h>
+
+#include <fstream>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -53,6 +56,7 @@ BEGIN_MESSAGE_MAP(CPSO1Doc, CDocument)
 	ON_COMMAND(ID_PICTURE_OPTION, &CPSO1Doc::OnPictureOption)
 	ON_COMMAND(ID_PSO_MORE, &CPSO1Doc::OnPsoMore)
 	ON_COMMAND(ID_FILE_REMOVE, &CPSO1Doc::OnFileRemove)
+	ON_COMMAND(ID_WEIGHT, &CPSO1Doc::OnWeight)
 END_MESSAGE_MAP()
 
 
@@ -133,6 +137,9 @@ CPSO1Doc::CPSO1Doc():pi(3.1416),R0(6378000),g0(9.80665),uE(3.986e14),wE((2*pi)/(
 	m_target2=1;
 	m_target3=10000;
 	m_target4=100000000;
+
+	// 初始化权重
+	Initial();
 }
 
 CPSO1Doc::~CPSO1Doc()
@@ -1022,7 +1029,7 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	double maxTV=(m_tScope[1]-m_tScope[0]);
 	double maxV_a=(m_scope_a[1]-m_scope_a[0]);
 	//临时的适应度
-	double adapt;
+	//double adapt;
 
 	// 保存每次与约束有关的计算结果
 	double **finalState=new double *[6];
@@ -1304,9 +1311,9 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	}
 
 	// 计算适应度 计算出的是个矩阵
-	double *adapt=new double[m_n]; // 本次循环计算出的所有粒子的适应度
+	double *adapt=new double [m_n]; // 本次循环计算出的所有粒子的适应度
 
-	
+	delete []adapt;
 
 
 	for(int i=0;i<6;i++)
@@ -2536,5 +2543,144 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 		// 权值 * 对应部分/最大值
 	}
 	
+
+}
+
+
+void CPSO1Doc::OnWeight()
+{
+	// TODO: 在此添加命令处理程序代码
+	CDiaLimitsWeight diaWeight;
+	diaWeight.m_conA=m_wConA;
+	diaWeight.m_conB=m_wConB;
+	diaWeight.m_dTrack=m_wDTrack;
+	diaWeight.m_gao=m_wS1;
+	diaWeight.m_hangJi=m_wS5;
+	diaWeight.m_hangXiang=m_wS6;
+	diaWeight.m_heat=m_wHeat;
+	diaWeight.m_heatDen=m_wHeatDen;
+	diaWeight.m_jing=m_wS2;
+	diaWeight.m_overLoad=m_wOver;
+	diaWeight.m_pressure=m_wPressure;
+	diaWeight.m_su=m_wS4;
+	diaWeight.m_track=m_wTrack;
+	diaWeight.m_wei=m_wS3;
+	//diaWeight.UpdateData(FALSE);
+	if(diaWeight.DoModal()==IDOK)
+	{
+		m_wConA=diaWeight.m_conA;
+		m_wConB=diaWeight.m_conB;
+		m_wDTrack=diaWeight.m_dTrack;
+		m_wS1=diaWeight.m_gao;
+		m_wS5=diaWeight.m_hangJi;
+		m_wS6=diaWeight.m_hangXiang;
+		m_wHeat=diaWeight.m_heat;
+		m_wHeatDen=diaWeight.m_heatDen;
+		m_wS2=diaWeight.m_jing;
+		m_wOver=diaWeight.m_overLoad;
+		m_wPressure=diaWeight.m_pressure;
+		m_wS4=diaWeight.m_su;
+		m_wTrack=diaWeight.m_track;
+		m_wS3=diaWeight.m_wei;
+		
+		std::ofstream file("LimitsWeight.txt");
+		file<<"gaodu "<<m_wS1
+			<<"jingdu "<<m_wS2
+			<<"weidu "<<m_wS3
+			<<"sudu "<<m_wS4
+			<<"hangjijiao "<<m_wS5
+			<<"hangxiangjiao "<<m_wS6
+			<<"guozai "<<m_wOver
+			<<"dongya "<<m_wPressure
+			<<"reliu "<<m_wHeatDen
+			<<"zongreliang "<<m_wHeat
+			<<"gongjiaobianhualv "<<m_wConA
+			<<"qingcejiaobianhualv "<<m_wConB
+			<<"track "<<m_wTrack
+			<<"trackbianhualv "<<m_wDTrack;
+	}
+
+}
+
+void CPSO1Doc::Initial()
+{
+	std::ifstream file("LimitsWeight.txt");
+	char tempName[100];
+	memset(tempName,0,sizeof(tempName));
+
+	while(file>>tempName)
+	{
+		if(strcmp(tempName,"gaodu")==0)
+		{
+			file>>m_wS1;
+			continue;
+		}
+		else if(strcmp(tempName,"jingdu")==0)
+		{
+			file>>m_wS2;
+			continue;
+		}
+		else if(strcmp(tempName,"weidu")==0)
+		{
+			file>>m_wS3;
+			continue;
+		}
+		else if(strcmp(tempName,"sudu")==0)
+		{
+			file>>m_wS4;
+			continue;
+		}
+		else if(strcmp(tempName,"hangjijiao")==0)
+		{
+			file>>m_wS5;
+			continue;
+		}
+		else if(strcmp(tempName,"hangxiangjiao")==0)
+		{
+			file>>m_wS6;
+			continue;
+		}
+		else if(strcmp(tempName,"guozai")==0)
+		{
+			file>>m_wOver;
+			continue;
+		}
+		else if(strcmp(tempName,"dongya")==0)
+		{
+			file>>m_wPressure;
+			continue;
+		}
+		else if(strcmp(tempName,"reliu")==0)
+		{
+			file>>m_wHeatDen;
+			continue;
+		}
+		else if(strcmp(tempName,"zongreliang")==0)
+		{
+			file>>m_wHeat;
+			continue;
+		}
+		else if(strcmp(tempName,"gongjiaobianhualv")==0)
+		{
+			file>>m_wConA;
+			continue;
+		}
+		else if(strcmp(tempName,"qingcejiaobianhualv")==0)
+		{
+			file>>m_wConB;
+			continue;
+		}
+		else if(strcmp(tempName,"track")==0)
+		{
+			file>>m_wTrack;
+			continue;
+		}
+		else if(strcmp(tempName,"trackbianhualv")==0)
+		{
+			file>>m_wDTrack;
+			continue;
+		}
+	}
+
 
 }
