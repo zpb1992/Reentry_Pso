@@ -812,6 +812,20 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 	UINT index=m_n;
 	if(0==m_randFlag)
 	{
+		double **finalState=new double *[6];
+		for(int i=0;i<6;i++)
+		{
+			finalState[i]=new double [m_n];
+		}
+		double *overLoad=new double [m_n];
+		double *pressure=new double[m_n];
+		double *heatDensity=new double[m_n];
+		double *heat=new double[m_n];
+		double *dControlA=new double[m_n];
+		double *dControlB=new double[m_n];
+		double *angleTrack=new double[m_n];
+		double *dAngleTrack=new double[m_n];
+
 		for(UINT i=0;i<m_n;i++)
 		{
 			// 倾侧角 攻角
@@ -823,6 +837,7 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 			TimeSwarm[i]=((double)rand()/RAND_MAX)*(m_tScope[1]-m_tScope[0])+m_tScope[0];
 			TimeSwarmV[i]=((double)rand()/RAND_MAX)*(m_tScope[1]-m_tScope[0])*pow(-1.0,rand()%2);
 			OptTime[i]=TimeSwarm[i];
+
 			for(UINT j=0;j<m_d;j++)
 			{
 				ParSwarm[i][j]=((double)rand()/RAND_MAX)*(m_scope[1]-m_scope[0])+m_scope[0];
@@ -833,7 +848,7 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 				ParSwarmV[i][m_d+j]=((double)rand()/RAND_MAX)*(m_scope_a[1]-m_scope_a[0])*pow(-1.0,rand()%2);
 				OptSwarm[i][m_d+j]=ParSwarm[i][m_d+j];
 			}
-
+/*
 			AdaptSwarm[i]=AdaptFunc(ParSwarm[i],TimeSwarm[i],State);			//每个粒子的最优位置的适应度
 		
 			// 判断AdaptSwarm[i]是否是NaN
@@ -854,10 +869,150 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 				}
 
 				AdaptSwarm[i]=AdaptFunc(ParSwarm[i],TimeSwarm[i],State);	
+			}*/
+
+			// NEW
+			// 保存每次与约束有关的计算结果
+			LGKT(ParSwarm[i],TimeSwarm[i],State);
+			
+			//这里监测一下状态是不是非数或者无穷大 简化一下 不监测适应度了
+			//for(unsigned int temp=0;temp<6;temp++)
+			//{
+			//	while(State[temp][m_stateN-1]!=State[temp][m_stateN-1])
+			//	{
+			//		UpdatePar(&TimeSwarm[temp],&TimeSwarmV[temp],&OptTime[temp],ParSwarm[temp],ParSwarmV[temp],OptSwarm[temp]);
+			//		LGKT(ParSwarm[i],TimeSwarm[i],State);
+			//	}
+			//}
+			// 只监测高度
+			while(State[0][m_stateN-1]!=State[0][m_stateN-1])
+			{
+				UpdatePar(&TimeSwarm[0],&TimeSwarmV[0],&OptTime[0],ParSwarm[0],ParSwarmV[0],OptSwarm[0]);
+				LGKT(ParSwarm[i],TimeSwarm[i],State);
 			}
+			
+			/*     让所有的值都趋于0就行了   */
+			// 等式约束
+			if(m_finalflag1)
+				finalState[0][i]=std::abs(State[0][m_d-1]-m_finalState1);
+			if(m_finalflag2)
+				finalState[1][i]=std::abs(State[1][m_d-1]-m_finalState2);
+			if(m_finalflag3)
+				finalState[2][i]=std::abs(State[2][m_d-1]-m_finalState3);
+			if(m_finalflag5)
+				finalState[4][i]=std::abs(State[4][m_d-1]-m_finalState5);
+			if(m_finalflag6)
+				finalState[5][i]=std::abs(State[5][m_d-1]-m_finalState6);
+			// 等式约束
+			if(m_finalflag4)
+				finalState[3][i]=std::abs(State[3][m_d-1]-m_finalState4);
+
+
+			double sumQ=0;
+			double Q,q,n;
+			PathLimits(State,ParSwarm[i],Q,q,n,sumQ);
+			sumQ = sumQ*TimeSwarm[i]/(double)(m_stateN-1);
+			overLoad[i]=n;
+			pressure[i]=q;
+			heatDensity[i]=Q;
+			heat[i]=sumQ;
+
+			double conA=0,conB=0;
+			for(int cn=1;cn<m_d;cn++)
+			{
+				// 控制变量 变化率
+				conB += std::abs(ParSwarm[i][cn]-ParSwarm[i][cn-1]);
+				conA += std::abs(ParSwarm[i][cn+m_d]-ParSwarm[i][cn+m_d-1]);
+			}
+			dControlA[i]=conA*TimeSwarm[i]/(double)(m_d-1);
+			dControlB[i]=conB*TimeSwarm[i]/(double)(m_d-1);
+
+			double track=0,dTrack=0;
+			for(int sd=1;sd<m_stateN;sd++)
+			{
+				track+=std::abs(State[4][sd]);
+
+				double g=R0*R0*g0/(State[0][i]*State[0][i]);
+				double den=den0*exp(-(State[0][i]-R0)/H);
+				double a=Interp1(ParSwarm[i]+m_d,(double)sd/(m_stateN-1));
+				double Cl,Cd;
+				ClCdFunc(a,State[3][i],&Cl,&Cd);
+				double L=den*State[3][i]*State[3][i]*m_s*Cl/2;
+				dTrack += std::abs((State[3][i]*State[3][i]/State[0][i]-g)+L/m_m);
+				//dTrack+=std::abs(State[4][sd]-State[4][sd-1]);			
+			}
+			angleTrack[i]=track;
+			dAngleTrack[i]=dTrack;
+
 		}
+
+
+		// 初始化适应度 每个粒子的最优适应度 全局最优适应度
+		for(unsigned int i=0;i<m_n;i++)
+		{
+			// 计算适应度 计算出的是个矩阵
+			double *adapt=new double [m_n]; // 本次循环计算出的所有粒子的适应度
+			memset(adapt,0,m_n*sizeof(double));
+			// 求出来 adapt越小越好  而且adapt还没有算完
+			NormalizationForLimit(adapt,finalState,overLoad,pressure,heatDensity,heat,dControlA,dControlB,angleTrack,dAngleTrack);	
+
+			for(int pn=0;pn<m_n;pn++)
+			{
+				// 继续计算adapt
+				double maxTime=MaxEx(TimeSwarm,m_n);
+				adapt[pn]=-TimeSwarm[pn]-adapt[pn];// 时间最短
+
+				if(AdaptSwarm[pn]<adapt[pn])
+				{
+					AdaptSwarm[pn]=adapt[pn];
+					for(UINT j=0;j<2*m_d;j++)
+					{
+						OptSwarm[pn][j]=ParSwarm[pn][j];
+					}
+					OptTime[pn]=TimeSwarm[pn];
+					//全局最优
+					if(m_bestAdapt<adapt[pn])
+					{
+						m_bestAdapt=adapt[pn];
+						for(UINT j=0;j<2*m_d;j++)
+						{
+							BestPar[j]=ParSwarm[pn][j];
+						}
+						*BestTime=TimeSwarm[pn];
+
+						////  达到最优之后 重新随机粒子
+						//UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
+						//AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);	
+						//// 判断AdaptSwarm[pn]是否是NaN
+						//while(AdaptSwarm[pn]!=AdaptSwarm[pn])
+						//{
+						//	UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
+						//	AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);
+						//}
+					}
+				}
+			}
+
+			delete []adapt;
+
+		}
+
+		for(int i=0;i<6;i++)
+		{
+			delete []finalState[i];
+		}
+		delete []finalState;
+		delete []overLoad;
+		delete []pressure;
+		delete []heatDensity;
+		delete []heat;
+		delete []dControlA;
+		delete []dControlB;
+		delete []angleTrack;
+		delete []dAngleTrack;
+
 	}
-	else if(1==m_randFlag)
+	/*else if(1==m_randFlag)
 	{
 		srand((int)time(0));
 		double* lrandPar=new double [m_d];
@@ -910,7 +1065,7 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 		}
 		delete(lrandPar);
 		delete(lrandParV);
-	}
+	}*/
 	m_bestAdapt=Max(AdaptSwarm,index);
 	for(UINT i=0;i<2*m_d;i++)
 	{
@@ -1328,6 +1483,7 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	for(int pn=0;pn<m_n;pn++)
 	{
 		// 继续计算adapt
+		double maxTime=MaxEx(TimeSwarm,m_n);
 		adapt[pn]=-TimeSwarm[pn]-adapt[pn];// 时间最短
 
 		if(AdaptSwarm[pn]<adapt[pn])

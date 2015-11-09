@@ -1,4 +1,4 @@
-gaodu 10
+gaodu 1
 jingdu 1
 weidu 1
 sudu 1
