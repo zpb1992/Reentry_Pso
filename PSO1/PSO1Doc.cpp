@@ -464,6 +464,11 @@ void CPSO1Doc::PsoProcess()
 		m_stepCount++;
 		StepFunc(parSwarm,parSwarmV,timeSwarm,timeSwarmV,optSwarm,bestPar,adaptSwarm,optTime,bestTime,State);
 	}
+
+	// test
+	LGKT(bestPar,*bestTime,State);
+
+
 	// 最后把值赋给成员变量 
 	// 控制变量 位置 bestPar
 	// 状态变量  
@@ -887,7 +892,7 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 			// 只监测高度
 			while(State[0][m_stateN-1]!=State[0][m_stateN-1])
 			{
-				UpdatePar(&TimeSwarm[0],&TimeSwarmV[0],&OptTime[0],ParSwarm[0],ParSwarmV[0],OptSwarm[0]);
+				UpdatePar(&TimeSwarm[i],&TimeSwarmV[i],&OptTime[i],ParSwarm[i],ParSwarmV[i],OptSwarm[i]);
 				LGKT(ParSwarm[i],TimeSwarm[i],State);
 			}
 			
@@ -918,7 +923,7 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 			heat[i]=sumQ;
 
 			double conA=0,conB=0;
-			for(int cn=1;cn<m_d;cn++)
+			for(unsigned int cn=1;cn<m_d;cn++)
 			{
 				// 控制变量 变化率
 				conB += std::abs(ParSwarm[i][cn]-ParSwarm[i][cn-1]);
@@ -928,17 +933,17 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 			dControlB[i]=conB*TimeSwarm[i]/(double)(m_d-1);
 
 			double track=0,dTrack=0;
-			for(int sd=1;sd<m_stateN;sd++)
+			for(unsigned int sd=1;sd<m_stateN;sd++)
 			{
 				track+=std::abs(State[4][sd]);
 
-				double g=R0*R0*g0/(State[0][i]*State[0][i]);
-				double den=den0*exp(-(State[0][i]-R0)/H);
+				double g=R0*R0*g0/(State[0][sd]*State[0][sd]);
+				double den=den0*exp(-(State[0][sd]-R0)/H);
 				double a=Interp1(ParSwarm[i]+m_d,(double)sd/(m_stateN-1));
 				double Cl,Cd;
-				ClCdFunc(a,State[3][i],&Cl,&Cd);
-				double L=den*State[3][i]*State[3][i]*m_s*Cl/2;
-				dTrack += std::abs((State[3][i]*State[3][i]/State[0][i]-g)+L/m_m);
+				ClCdFunc(a,State[3][sd],&Cl,&Cd);
+				double L=den*State[3][sd]*State[3][sd]*m_s*Cl/2;
+				dTrack += std::abs((State[3][sd]*State[3][sd]/State[0][sd]-g)+L/m_m);
 				//dTrack+=std::abs(State[4][sd]-State[4][sd-1]);			
 			}
 			angleTrack[i]=track;
@@ -948,54 +953,18 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 
 
 		// 初始化适应度 每个粒子的最优适应度 全局最优适应度
-		for(unsigned int i=0;i<m_n;i++)
+		memset(AdaptSwarm,0,m_n*sizeof(double));
+		// 求出来 adapt越小越好  而且adapt还没有算完
+		NormalizationForLimit(AdaptSwarm,finalState,overLoad,pressure,heatDensity,heat,dControlA,dControlB,angleTrack,dAngleTrack);	
+
+		for(unsigned int pn=0;pn<m_n;pn++)
 		{
-			// 计算适应度 计算出的是个矩阵
-			double *adapt=new double [m_n]; // 本次循环计算出的所有粒子的适应度
-			memset(adapt,0,m_n*sizeof(double));
-			// 求出来 adapt越小越好  而且adapt还没有算完
-			NormalizationForLimit(adapt,finalState,overLoad,pressure,heatDensity,heat,dControlA,dControlB,angleTrack,dAngleTrack);	
-
-			for(int pn=0;pn<m_n;pn++)
-			{
-				// 继续计算adapt
-				double maxTime=MaxEx(TimeSwarm,m_n);
-				adapt[pn]=-TimeSwarm[pn]-adapt[pn];// 时间最短
-
-				if(AdaptSwarm[pn]<adapt[pn])
-				{
-					AdaptSwarm[pn]=adapt[pn];
-					for(UINT j=0;j<2*m_d;j++)
-					{
-						OptSwarm[pn][j]=ParSwarm[pn][j];
-					}
-					OptTime[pn]=TimeSwarm[pn];
-					//全局最优
-					if(m_bestAdapt<adapt[pn])
-					{
-						m_bestAdapt=adapt[pn];
-						for(UINT j=0;j<2*m_d;j++)
-						{
-							BestPar[j]=ParSwarm[pn][j];
-						}
-						*BestTime=TimeSwarm[pn];
-
-						////  达到最优之后 重新随机粒子
-						//UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
-						//AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);	
-						//// 判断AdaptSwarm[pn]是否是NaN
-						//while(AdaptSwarm[pn]!=AdaptSwarm[pn])
-						//{
-						//	UpdatePar(&TimeSwarm[pn],&TimeSwarmV[pn],&OptTime[pn],ParSwarm[pn],ParSwarmV[pn],OptSwarm[pn]);
-						//	AdaptSwarm[pn]=AdaptFunc(ParSwarm[pn],TimeSwarm[pn],State);
-						//}
-					}
-				}
-			}
-
-			delete []adapt;
-
+			// 继续计算adapt
+			double maxTime=MaxEx(TimeSwarm,m_n);
+			AdaptSwarm[pn]=-TimeSwarm[pn]/maxTime-AdaptSwarm[pn];// 时间最短
 		}
+
+
 
 		for(int i=0;i<6;i++)
 		{
@@ -1164,7 +1133,7 @@ double CPSO1Doc::Max(double* arry, UINT& n)
 double CPSO1Doc::MaxEx(double* arry, int n)
 {
 	double max=arry[0];
-	for(UINT i=1;i<n;i++)
+	for(int i=1;i<n;i++)
 	{
 		if(max<arry[i])
 		{
@@ -1319,7 +1288,7 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 		heat[i]=sumQ;
 
 		double conA=0,conB=0;
-		for(int cn=1;cn<m_d;cn++)
+		for(unsigned int cn=1;cn<m_d;cn++)
 		{
 			// 控制变量 变化率
 			conB += std::abs(ParSwarm[i][cn]-ParSwarm[i][cn-1]);
@@ -1329,17 +1298,17 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 		dControlB[i]=conB*TimeSwarm[i]/(double)(m_d-1);
 
 		double track=0,dTrack=0;
-		for(int sd=1;sd<m_stateN;sd++)
+		for(unsigned int sd=1;sd<m_stateN;sd++)
 		{
 			track+=std::abs(State[4][sd]);
 
-			double g=R0*R0*g0/(State[0][i]*State[0][i]);
-			double den=den0*exp(-(State[0][i]-R0)/H);
+			double g=R0*R0*g0/(State[0][sd]*State[0][sd]);
+			double den=den0*exp(-(State[0][sd]-R0)/H);
 			double a=Interp1(ParSwarm[i]+m_d,(double)sd/(m_stateN-1));
 			double Cl,Cd;
-			ClCdFunc(a,State[3][i],&Cl,&Cd);
-			double L=den*State[3][i]*State[3][i]*m_s*Cl/2;
-			dTrack += std::abs((State[3][i]*State[3][i]/State[0][i]-g)+L/m_m);
+			ClCdFunc(a,State[3][sd],&Cl,&Cd);
+			double L=den*State[3][sd]*State[3][sd]*m_s*Cl/2;
+			dTrack += std::abs((State[3][sd]*State[3][sd]/State[0][sd]-g)+L/m_m);
 			//dTrack+=std::abs(State[4][sd]-State[4][sd-1]);			
 		}
 		angleTrack[i]=track;
@@ -1480,7 +1449,7 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	// 求出来 adapt越小越好  而且adapt还没有算完
 	NormalizationForLimit(adapt,finalState,overLoad,pressure,heatDensity,heat,dControlA,dControlB,angleTrack,dAngleTrack);	
 
-	for(int pn=0;pn<m_n;pn++)
+	for(unsigned int pn=0;pn<m_n;pn++)
 	{
 		// 继续计算adapt
 		double maxTime=MaxEx(TimeSwarm,m_n);
@@ -1728,7 +1697,7 @@ void CPSO1Doc::PathLimits(double** State,double*con, double& Q, double& q, doubl
 			//Interp1_ab(con,(double)i/(m_stateN-1),a,b);
 			a=Interp1(con+m_d,(double)i/(m_stateN-1));
 
-		    ClCdFunc(a,State[3][0],&Cl,&Cd);
+		    ClCdFunc(a,State[3][i],&Cl,&Cd);
 			den=den0*exp(-(State[0][i]-R0)/H);
 			tempQ=C1/pow(m_r,0.5)*pow(den/den0,0.5)*pow(State[3][i]/Vc,3.15);
 			tempq=den*State[3][i]*State[3][i]/2;
@@ -1739,6 +1708,7 @@ void CPSO1Doc::PathLimits(double** State,double*con, double& Q, double& q, doubl
 			{	q=tempq;}
 			if(n<tempn)
 			{	n=tempn;}
+			sumQ += Q;
 		}
 	}
 }
@@ -2742,15 +2712,15 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 	double maxTrack=MaxEx(track,m_n);
 	double maxDTrack=MaxEx(dTrack,m_n);
 
-	for(int i=0;i<m_n;i++)
+	for(unsigned int i=0;i<m_n;i++)
 	{
 		// 权值 * 对应部分/最大值
 		adaptLimits[i]=m_finalflag1*m_wS1*finalState[0][i]/fitFinalState[0]
-						+m_finalflag2*m_wS1*finalState[1][i]/fitFinalState[1]
-						+m_finalflag3*m_wS1*finalState[2][i]/fitFinalState[2]
-						+m_finalflag4*m_wS1*finalState[3][i]/fitFinalState[3]
-						+m_finalflag5*m_wS1*finalState[4][i]/fitFinalState[4]
-						+m_finalflag6*m_wS1*finalState[5][i]/fitFinalState[5]
+						+m_finalflag2*m_wS2*finalState[1][i]/fitFinalState[1]
+						+m_finalflag3*m_wS3*finalState[2][i]/fitFinalState[2]
+						+m_finalflag4*m_wS4*finalState[3][i]/fitFinalState[3]
+						+m_finalflag5*m_wS5*finalState[4][i]/fitFinalState[4]
+						+m_finalflag6*m_wS6*finalState[5][i]/fitFinalState[5]
 										+m_wOver*overLoad[i]/maxOverLoad
 										+m_wPressure*pressure[i]/maxPressure
 										+m_wHeatDen*heatDen[i]/maxHeatDen
