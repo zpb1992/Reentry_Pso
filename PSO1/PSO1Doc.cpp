@@ -960,7 +960,8 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 		for(unsigned int pn=0;pn<m_n;pn++)
 		{
 			// 继续计算adapt
-			double maxTime=MaxEx(TimeSwarm,m_n);
+			//double maxTime=MaxEx(TimeSwarm,m_n);
+			double maxTime =1;
 			AdaptSwarm[pn]=-TimeSwarm[pn]/maxTime-AdaptSwarm[pn];// 时间最短
 		}
 
@@ -1452,8 +1453,9 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	for(unsigned int pn=0;pn<m_n;pn++)
 	{
 		// 继续计算adapt
-		double maxTime=MaxEx(TimeSwarm,m_n);
-		adapt[pn]=-TimeSwarm[pn]-adapt[pn];// 时间最短
+		//double maxTime=MaxEx(TimeSwarm,m_n);
+		double maxTime=1;
+		adapt[pn]=-TimeSwarm[pn]/maxTime-adapt[pn];// 时间最短
 
 		if(AdaptSwarm[pn]<adapt[pn])
 		{
@@ -2688,6 +2690,7 @@ void CPSO1Doc::OnFileRemove()
 
 void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack)
 {
+	/*
 	double fitFinalState[6];
 	if(m_finalflag1)
 		fitFinalState[0]=MaxEx(finalState[0],m_n);
@@ -2711,6 +2714,31 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 	double maxConB=MaxEx(conB,m_n);
 	double maxTrack=MaxEx(track,m_n);
 	double maxDTrack=MaxEx(dTrack,m_n);
+	*/
+	double fitFinalState[6];
+	for(unsigned int i=0;i<6;i++)
+	{
+		if(m_finalflag1)
+			fitFinalState[0]=1;
+		if(m_finalflag2)
+			fitFinalState[1]=1;
+		if(m_finalflag3)
+			fitFinalState[2]=1;
+		if(m_finalflag5)
+			fitFinalState[4]=1;
+		if(m_finalflag6)
+			fitFinalState[5]=1;
+		if(m_finalflag4)
+			fitFinalState[3]=1;
+	}
+	double maxOverLoad=1;
+	double maxPressure=1;
+	double maxHeatDen=1;
+	double maxHeat=1;
+	double maxConA=1;
+	double maxConB=1;
+	double maxTrack=1;
+	double maxDTrack=1;
 
 	for(unsigned int i=0;i<m_n;i++)
 	{
@@ -2728,7 +2756,8 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 										+m_wConA*conA[i]/maxConA
 										+m_wConB*conB[i]/maxConB
 										+m_wTrack*track[i]/maxTrack
-										+m_wDTrack*dTrack[i]/maxDTrack;
+										+m_wDTrack*dTrack[i]/maxDTrack
+										;
 		double temp = adaptLimits[i];
 	}
 	
