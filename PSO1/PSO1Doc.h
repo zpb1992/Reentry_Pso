@@ -233,4 +233,6 @@ public:
 	double m_wTrack;
 	double m_wDTrack;
 
+	double m_wTime;
+
 };

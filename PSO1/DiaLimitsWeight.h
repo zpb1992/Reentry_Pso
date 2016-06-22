@@ -33,4 +33,5 @@ public:
 	double m_su;
 	double m_track;
 	double m_wei;
+	double m_time;
 };

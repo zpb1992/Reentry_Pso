@@ -471,7 +471,7 @@ void CPSO1Doc::PsoProcess()
 
 	// 最后把值赋给成员变量 
 	// 控制变量 位置 bestPar
-	// 状态变量  
+	// 状态变量
 	// 时间 bestTime
 	// 只有倾侧角
 	for(UINT i=0;i<m_d;i++)
@@ -896,22 +896,23 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 				LGKT(ParSwarm[i],TimeSwarm[i],State);
 			}
 			
-			/*     让所有的值都趋于0就行了   */
+			/*     让所有的值都趋于0就行了  也就是越小越好 */
 			// 等式约束
 			if(m_finalflag1)
-				finalState[0][i]=std::abs(State[0][m_d-1]-m_finalState1);
+				finalState[0][i]=std::abs(State[0][m_stateN-1]-m_finalState1);
 			if(m_finalflag2)
-				finalState[1][i]=std::abs(State[1][m_d-1]-m_finalState2);
+				finalState[1][i]=std::abs(State[1][m_stateN-1]-m_finalState2);
 			if(m_finalflag3)
-				finalState[2][i]=std::abs(State[2][m_d-1]-m_finalState3);
+				finalState[2][i]=std::abs(State[2][m_stateN-1]-m_finalState3);
 			if(m_finalflag5)
-				finalState[4][i]=std::abs(State[4][m_d-1]-m_finalState5);
+				finalState[4][i]=std::abs(State[4][m_stateN-1]-m_finalState5);
 			if(m_finalflag6)
-				finalState[5][i]=std::abs(State[5][m_d-1]-m_finalState6);
-			// 等式约束
+				finalState[5][i]=std::abs(State[5][m_stateN-1]-m_finalState6);
+			
+			// 不等式约束  例外：越大越好  不好做
 			if(m_finalflag4)
-				finalState[3][i]=std::abs(State[3][m_d-1]-m_finalState4);
-
+				finalState[3][i]=std::abs(State[3][m_stateN-1]-m_finalState4);
+				//finalState[3][i]= - (State[3][m_stateN-1]-m_finalState4);
 
 			double sumQ=0;
 			double Q,q,n;
@@ -961,8 +962,8 @@ void CPSO1Doc::InitSwarm(double** ParSwarm,double** ParSwarmV, double** OptSwarm
 		{
 			// 继续计算adapt
 			//double maxTime=MaxEx(TimeSwarm,m_n);
-			double maxTime =1;
-			AdaptSwarm[pn]=-TimeSwarm[pn]/maxTime-AdaptSwarm[pn];// 时间最短
+			double maxTime =100;
+			AdaptSwarm[pn]=-m_wTime*TimeSwarm[pn]/maxTime-AdaptSwarm[pn];// 时间最短
 		}
 
 
@@ -1265,19 +1266,20 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 		/*     让所有的值都趋于0就行了   */
 		// 等式约束
 		if(m_finalflag1)
-			finalState[0][i]=std::abs(State[0][m_d-1]-m_finalState1);
+			finalState[0][i]=std::abs(State[0][m_stateN-1]-m_finalState1);
 		if(m_finalflag2)
-			finalState[1][i]=std::abs(State[1][m_d-1]-m_finalState2);
+			finalState[1][i]=std::abs(State[1][m_stateN-1]-m_finalState2);
 		if(m_finalflag3)
-			finalState[2][i]=std::abs(State[2][m_d-1]-m_finalState3);
+			finalState[2][i]=std::abs(State[2][m_stateN-1]-m_finalState3);
 		if(m_finalflag5)
-			finalState[4][i]=std::abs(State[4][m_d-1]-m_finalState5);
+			finalState[4][i]=std::abs(State[4][m_stateN-1]-m_finalState5);
 		if(m_finalflag6)
-			finalState[5][i]=std::abs(State[5][m_d-1]-m_finalState6);
-		// 等式约束
+			finalState[5][i]=std::abs(State[5][m_stateN-1]-m_finalState6);
+		
+		// 不等式约束
 		if(m_finalflag4)
-			finalState[3][i]=std::abs(State[3][m_d-1]-m_finalState4);
-
+			finalState[3][i]=std::abs(State[3][m_stateN-1]-m_finalState4);
+			//finalState[3][i]= - (State[3][m_stateN-1]-m_finalState4);
 
 		double sumQ=0;
 		double Q,q,n;
@@ -1454,8 +1456,8 @@ void CPSO1Doc::StepFunc(double** ParSwarm, double** ParSwarmV, double* TimeSwarm
 	{
 		// 继续计算adapt
 		//double maxTime=MaxEx(TimeSwarm,m_n);
-		double maxTime=1;
-		adapt[pn]=-TimeSwarm[pn]/maxTime-adapt[pn];// 时间最短
+		double maxTime=100;
+		adapt[pn]=-m_wTime*TimeSwarm[pn]/maxTime-adapt[pn];// 时间最短
 
 		if(AdaptSwarm[pn]<adapt[pn])
 		{
@@ -2690,55 +2692,56 @@ void CPSO1Doc::OnFileRemove()
 
 void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,double *overLoad,double *pressure,double *heatDen,double *heat,double *conA,double *conB,double *track,double *dTrack)
 {
-	/*
-	double fitFinalState[6];
-	if(m_finalflag1)
-		fitFinalState[0]=MaxEx(finalState[0],m_n);
-	if(m_finalflag2)
-		fitFinalState[1]=MaxEx(finalState[1],m_n);
-	if(m_finalflag3)
-		fitFinalState[2]=MaxEx(finalState[2],m_n);
-	if(m_finalflag5)
-		fitFinalState[4]=MaxEx(finalState[4],m_n);
-	if(m_finalflag6)
-		fitFinalState[5]=MaxEx(finalState[5],m_n);
-	// 等式约束
-	if(m_finalflag4)
-		fitFinalState[3]=MaxEx(finalState[3],m_n);
+	
+	//double fitFinalState[6];
+	//if(m_finalflag1)
+	//	fitFinalState[0]=MaxEx(finalState[0],m_n);
+	//if(m_finalflag2)
+	//	fitFinalState[1]=MaxEx(finalState[1],m_n);
+	//if(m_finalflag3)
+	//	fitFinalState[2]=MaxEx(finalState[2],m_n);
+	//if(m_finalflag5)
+	//	fitFinalState[4]=MaxEx(finalState[4],m_n);
+	//if(m_finalflag6)
+	//	fitFinalState[5]=MaxEx(finalState[5],m_n);
+	//// 等式约束
+	//if(m_finalflag4)
+	//	fitFinalState[3]=MaxEx(finalState[3],m_n);
 
-	double maxOverLoad=MaxEx(overLoad,m_n);
-	double maxPressure=MaxEx(pressure,m_n);
-	double maxHeatDen=MaxEx(heatDen,m_n);
-	double maxHeat=MaxEx(heat,m_n);
-	double maxConA=MaxEx(conA,m_n);
-	double maxConB=MaxEx(conB,m_n);
-	double maxTrack=MaxEx(track,m_n);
-	double maxDTrack=MaxEx(dTrack,m_n);
-	*/
+	//double maxOverLoad=MaxEx(overLoad,m_n);
+	//double maxPressure=MaxEx(pressure,m_n);
+	//double maxHeatDen=MaxEx(heatDen,m_n);
+	//double maxHeat=MaxEx(heat,m_n);
+	//double maxConA=MaxEx(conA,m_n);
+	//double maxConB=MaxEx(conB,m_n);
+	//double maxTrack=MaxEx(track,m_n);
+	//double maxDTrack=MaxEx(dTrack,m_n);
+	
+	// 归一化
 	double fitFinalState[6];
 	for(unsigned int i=0;i<6;i++)
 	{
 		if(m_finalflag1)
-			fitFinalState[0]=1;
+			fitFinalState[0]=100;
 		if(m_finalflag2)
-			fitFinalState[1]=1;
+			fitFinalState[1]=0.01;
 		if(m_finalflag3)
-			fitFinalState[2]=1;
+			fitFinalState[2]=0.01;
 		if(m_finalflag5)
-			fitFinalState[4]=1;
+			fitFinalState[4]=0.01;
 		if(m_finalflag6)
-			fitFinalState[5]=1;
+			fitFinalState[5]=0.01;
 		if(m_finalflag4)
-			fitFinalState[3]=1;
+			fitFinalState[3]=10;
 	}
 	double maxOverLoad=1;
-	double maxPressure=1;
-	double maxHeatDen=1;
-	double maxHeat=1;
-	double maxConA=1;
-	double maxConB=1;
-	double maxTrack=1;
-	double maxDTrack=1;
+	double maxPressure=10000;
+	double maxHeatDen=100000;
+	double maxHeat=100000000;
+	double maxConA=100;
+	double maxConB=100;
+	double maxTrack=100;
+	double maxDTrack=100;
 
 	for(unsigned int i=0;i<m_n;i++)
 	{
@@ -2746,18 +2749,18 @@ void CPSO1Doc::NormalizationForLimit(double *adaptLimits,double **finalState,dou
 		adaptLimits[i]=m_finalflag1*m_wS1*finalState[0][i]/fitFinalState[0]
 						+m_finalflag2*m_wS2*finalState[1][i]/fitFinalState[1]
 						+m_finalflag3*m_wS3*finalState[2][i]/fitFinalState[2]
-						+m_finalflag4*m_wS4*finalState[3][i]/fitFinalState[3]
+						+m_finalflag4*m_wS4*finalState[3][i]/fitFinalState[3] 
 						+m_finalflag5*m_wS5*finalState[4][i]/fitFinalState[4]
 						+m_finalflag6*m_wS6*finalState[5][i]/fitFinalState[5]
-										+m_wOver*overLoad[i]/maxOverLoad
-										+m_wPressure*pressure[i]/maxPressure
-										+m_wHeatDen*heatDen[i]/maxHeatDen
-										+m_wHeat*heat[i]/maxHeat
-										+m_wConA*conA[i]/maxConA
-										+m_wConB*conB[i]/maxConB
-										+m_wTrack*track[i]/maxTrack
-										+m_wDTrack*dTrack[i]/maxDTrack
-										;
+							+m_wOver*overLoad[i]/maxOverLoad
+							+m_wPressure*pressure[i]/maxPressure
+							+m_wHeatDen*heatDen[i]/maxHeatDen
+							+m_wHeat*heat[i]/maxHeat
+							+m_wConA*conA[i]/maxConA
+							+m_wConB*conB[i]/maxConB
+							+m_wTrack*track[i]/maxTrack
+							+m_wDTrack*dTrack[i]/maxDTrack						
+							;
 		double temp = adaptLimits[i];
 	}
 	
@@ -2783,6 +2786,7 @@ void CPSO1Doc::OnWeight()
 	diaWeight.m_su=m_wS4;
 	diaWeight.m_track=m_wTrack;
 	diaWeight.m_wei=m_wS3;
+	diaWeight.m_time=m_wTime;
 	//diaWeight.UpdateData(FALSE);
 	if(diaWeight.DoModal()==IDOK)
 	{
@@ -2800,7 +2804,8 @@ void CPSO1Doc::OnWeight()
 		m_wS4=diaWeight.m_su;
 		m_wTrack=diaWeight.m_track;
 		m_wS3=diaWeight.m_wei;
-		
+		m_wTime=diaWeight.m_time;
+
 		std::ofstream file("LimitsWeight.txt");
 		file<<"gaodu "<<m_wS1<<"\r\n"
 			<<"jingdu "<<m_wS2<<"\r\n"
@@ -2815,7 +2820,9 @@ void CPSO1Doc::OnWeight()
 			<<"gongjiaobianhualv "<<m_wConA<<"\r\n"
 			<<"qingcejiaobianhualv "<<m_wConB<<"\r\n"
 			<<"track "<<m_wTrack<<"\r\n"
-			<<"trackbianhualv "<<m_wDTrack;
+			<<"trackbianhualv "<<m_wDTrack<<"\r\n"
+			<<"time "<<m_wTime
+			;
 	}
 
 }
@@ -2896,6 +2903,11 @@ void CPSO1Doc::Initial()
 		else if(strcmp(tempName,"trackbianhualv")==0)
 		{
 			file>>m_wDTrack;
+			continue;
+		}
+		else if(strcmp(tempName,"time")==0)
+		{
+			file>>m_wTime;
 			continue;
 		}
 	}

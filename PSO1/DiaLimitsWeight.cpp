@@ -29,6 +29,7 @@ CDiaLimitsWeight::CDiaLimitsWeight(CWnd* pParent /*=NULL*/)
 	m_su = 0.0;
 	m_track = 0.0;
 	m_wei = 0.0;
+	m_time = 0.0;
 }
 
 CDiaLimitsWeight::~CDiaLimitsWeight()
@@ -52,6 +53,7 @@ void CDiaLimitsWeight::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_SU, m_su);
 	DDX_Text(pDX, IDC_TRACK, m_track);
 	DDX_Text(pDX, IDC_WEI, m_wei);
+	DDX_Text(pDX, IDC_TIME, m_time);
 }
 
 
